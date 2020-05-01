@@ -32,3 +32,8 @@ The password file is portable and user just needs to remember the master passwor
 ###### Retrieve all keys
 
 	go run passpass.go --get-keys
+
+### // TODO:
+1. Add strong password constraint.
+2. Allow to change password.
+3. Allow user to specify password file.
