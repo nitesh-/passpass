@@ -1,2 +1,34 @@
 # passpass
-PassPass is simple commandline Password Manager built in Golang
+PassPass is a simple command-line Password Manager built in Golang. It prompts the user for a master password every time and hence does not store the master password.
+
+Every password is encrypted using the master password and stored in a file `.p` in JSON format. The JSON is also encrypted using the master password.
+
+The password file is portable and user just needs to remember the master password as it is not stored anywhere.
+
+
+#### Usage:
+------
+	go run passpass.go --help
+
+#### Generating the build:
+	go build passpass.go
+
+#### Options:
+	Usage: passpass [-p] [-g value] [--help] [-s value] [parameters ...]
+	 -g, --get=value  value must be {keyname}. Get password for the corresponding key
+	 --help       Help
+	 -p, --get-keys   Print all keys
+	 -s, --set=value  value must be {keyname:password}. Sets key & password.
+
+#### Examples:
+###### Set a password
+
+	go run passpass.go -s 'keyname:password'
+
+###### Retrieve password
+
+	go run passpass.go -g keyname
+
+###### Retrieve all keys
+
+	go run passpass.go --get-keys

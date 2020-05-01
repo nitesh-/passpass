@@ -10,7 +10,6 @@ import(
 	"github.com/howeyc/gopass"
 	"github.com/pborman/getopt"
 	"github.com/atotto/clipboard"
-
 )
 
 const EncryptedFilePath = "./.p"
@@ -41,7 +40,7 @@ func main() {
 				GetAllKeys(string(masterPassword))
 			}
 		} else {
-			fmt.Println("Please provide master password	")
+			fmt.Println("Please provide master password")
 		}
 	}
 }
