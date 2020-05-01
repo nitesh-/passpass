@@ -30,7 +30,7 @@ func main() {
 
 		masterPassword, _ := gopass.GetPasswd()
 
-		if string(masterPassword) != "" {
+		if len(masterPassword) > 0 {
 			if *optSet != "" {
 				strSplit := strings.Split(*optSet, ":")
 				SetPassword(string(masterPassword), strSplit[0], strSplit[1])
@@ -98,7 +98,8 @@ func GetPassword(masterPassword string, key string) {
 				// Try copying to clipboard
 				err := clipboard.WriteAll(string(dec))
 				// If unsuccessful, then print password
-				if strings.Contains(err.Error(), "exit status") {
+				if err != nil {
+					fmt.Println(err)
 					fmt.Printf("Password: %s\n", string(dec))
 				} else {
 					fmt.Println("Password copied to clipboard")
@@ -114,32 +115,32 @@ func GetPassword(masterPassword string, key string) {
 			fmt.Printf("The provided key %s does not exists.", key)
 		}
 	} else {
-		fmt.Println("The password file is not found.")
+		fmt.Println(err)
 	}
 }
 
 func GetAllKeys(masterPassword string) {
-	content, err := ioutil.ReadFile(EncryptedFilePath)
+	content, err := DecryptFile(masterPassword, EncryptedFilePath)
 	encryptedDataMap := make(map[string]string)
 	if err == nil {
-		json.Unmarshal(content, &encryptedDataMap)
+		json.Unmarshal([]byte(content), &encryptedDataMap)
 		for key := range encryptedDataMap {
 			fmt.Println(key)
 		}
 	} else {
-		fmt.Println("The password file is not found.")
+		fmt.Println(err)
 	}
 }
 
 func DecryptFile(masterPassword string, filePath string) (string, error) {
 	content, err := ioutil.ReadFile(filePath)
-
 	if err == nil {
 		o := openssl.New()
 		dec, err := o.DecryptBytes(masterPassword, []byte(content), openssl.DigestSHA256Sum)
 		if(err == nil) {
 			return string(dec), nil
 		}
+		return "", errors.New("The master password may be incorrect")
 	}
 
 	return "", errors.New("Invalid Encrypted file path")

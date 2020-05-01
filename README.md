@@ -33,6 +33,11 @@ The password file is portable and user just needs to remember the master passwor
 
 	go run passpass.go --get-keys
 
+###### Copy to Clipboard Dependencies:
+	OSX - No Dependencies
+	Windows 7 (probably work on other Windows) - No Dependencies
+	Linux, Unix (requires 'xclip' or 'xsel' command to be installed)
+
 ### // TODO:
 1. Add strong password constraint.
 2. Allow to change password.
