@@ -1,7 +1,7 @@
 # passpass
 PassPass is a simple command-line Password Manager built in Golang. It prompts the user for a master password every time and hence does not store the master password.
 
-Every password is encrypted using the master password and stored in a file `.p` in JSON format. The JSON is also encrypted using the master password.
+Every password is encrypted using the master password and stored in a file `p.psdb` in JSON format. The JSON is also encrypted using the master password.
 
 The password file is portable and user just needs to remember the master password as it is not stored anywhere.
 
@@ -15,10 +15,11 @@ The password file is portable and user just needs to remember the master passwor
 
 #### Options:
 	Usage: passpass [-p] [-g value] [--help] [-s value] [parameters ...]
-	 -g, --get=value  value must be {keyname}. Get password for the corresponding key
-	 --help       Help
-	 -p, --get-keys   Print all keys
-	 -s, --set=value  value must be {keyname:password}. Sets key & password.
+	 -d, --delete=value value must be {keyname}. Deletes the key.
+	 -g, --get=value    value must be {keyname}. Get password for the corresponding key
+	 --help             Help
+	 -p, --get-keys     Print all keys
+	 -s, --set=value    value must be {keyname:password}. Sets key & password.
 
 #### Examples:
 ###### Set a password
@@ -28,6 +29,10 @@ The password file is portable and user just needs to remember the master passwor
 ###### Retrieve password
 
 	go run passpass.go -g keyname
+
+###### Delete password
+
+	go run passpass.go -d keyname
 
 ###### Retrieve all keys
 
