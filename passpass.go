@@ -3,13 +3,13 @@ package main
 import(
 	"fmt"
 	"strings"
+	"os"
+	"runtime"
 	"github.com/pborman/getopt"
 	"github.com/howeyc/gopass"
 	"github.com/atotto/clipboard"
 	"./lib"
 )
-
-const EncryptedFilePath string = "./p.psdb"
 
 func main() {
 
@@ -17,6 +17,7 @@ func main() {
 	optSet := getopt.StringLong("set", 's', "", "value must be {keyname:password}. Sets key & password.")
 	optGet := getopt.StringLong("get", 'g', "", "value must be {keyname}. Get password for the corresponding key.")
 	optDelete := getopt.StringLong("delete", 'd', "", "value must be {keyname}. Deletes the key.")
+	optPasswordFile := getopt.StringLong("password-file", 'f', "", "Provide the path of password file")
 	optGetKeys := getopt.BoolLong("get-keys", 'p', "Print all keys", "")
 	
 	getopt.Parse()
@@ -30,11 +31,33 @@ func main() {
 		masterPassword, _ := gopass.GetPasswd()
 
 		if len(masterPassword) > 0 {
+			homeDir := userHomeDir()
+			EncryptedFilePath := ""
+			// Set the password db file path
+			if *optPasswordFile != "" {
+				EncryptedFilePath = *optPasswordFile
+				_, err := os.Stat(EncryptedFilePath)
+				if err != nil {
+					// Trying to save empty json encrypted file
+					err := lib.EncryptFile(string(masterPassword), EncryptedFilePath, "{}")
+					if err != nil {
+						fmt.Println(err)
+						os.Exit(0)
+					}
+				}
+			} else {
+				EncryptedFilePath = homeDir + "/.passpass/p.psdb"
+				_, err := os.Stat(EncryptedFilePath)
+				if err != nil {
+					os.MkdirAll(strings.Replace(EncryptedFilePath, "/p.psdb", "", 1), 0700)
+				}
+			}
+
 			if *optSet != "" {
 				strSplit := strings.Split(*optSet, ":")
 				err := lib.SetPassword(EncryptedFilePath, string(masterPassword), strSplit[0], strSplit[1])
 				if err == nil {
-					fmt.Println("Password set successfully.")
+					fmt.Println("Password set successfully in " + EncryptedFilePath)
 				} else {
 					fmt.Println(err)
 				}
@@ -76,6 +99,27 @@ func main() {
 			fmt.Println("Please provide master password")
 		}
 	}
+}
+
+/**
+ * https://stackoverflow.com/questions/7922270/obtain-users-home-directory#answer-41786440
+ *
+ *
+ */
+func userHomeDir() string {
+    if runtime.GOOS == "windows" {
+        home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+        if home == "" {
+            home = os.Getenv("USERPROFILE")
+        }
+        return home
+    } else if runtime.GOOS == "linux" {
+        home := os.Getenv("XDG_CONFIG_HOME")
+        if home != "" {
+            return home
+        }
+    }
+    return os.Getenv("HOME")
 }
 
 /** build command
