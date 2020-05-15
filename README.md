@@ -25,7 +25,7 @@ The password file is portable and user just needs to remember the master passwor
 #### Examples:
 ###### Set a password
 
-	go run passpass.go -s 'keyname:password'
+	go run passpass.go -s 'keyname'
 
 ###### Retrieve password
 
@@ -37,7 +37,11 @@ The password file is portable and user just needs to remember the master passwor
 
 ###### Retrieve all keys
 
-	go run passpass.go --get-keys
+	go run passpass.go -p
+
+###### Change password
+
+	go run passpass.go -c
 
 ###### Copy to Clipboard Dependencies:
 	OSX - No Dependencies
