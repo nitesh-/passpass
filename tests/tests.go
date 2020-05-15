@@ -3,21 +3,17 @@ package main
 import(
 	"fmt"
 	"os"
-	"../lib"
+	"github.com/nitesh-/passpass/lib"
 )
 
 const EncryptedFilePath = "./testcase.psdb"
 
 func main() {
 	
-	masterPassword := "HelloWorld1234"
+	masterPassword := "Hellow1%"
+	newMasterPassword := "Hellow1%%"
 
 	keyPasswordMap := make(map[string]string)
-
-	bashTextColorMap := make(map[string]string)
-	bashTextColorMap["Green"] = "\033[0;32m"
-	bashTextColorMap["Red"] = "\033[0;31m"
-	bashTextColorMap["Normal"] = "\033[0;0m"
 
 	keyPasswordMap["gmail"] = "Hello1234"
 	keyPasswordMap["yahoo"] = "Hello12345"
@@ -25,6 +21,14 @@ func main() {
 	keyPasswordMap["yandex"] = "Hello12347"
 
 	testCaseOutputMap := make(map[string]string)
+
+	// Validate Password test case
+	_ , passwordInvalid := lib.ValidatePassword(masterPassword)
+	if !passwordInvalid {
+		testCaseOutputMap["ValidatePassword"] = "passed"
+	} else {
+		testCaseOutputMap["ValidatePassword"] = "failed"
+	}
 
 	// Setting Password
 	testCaseOutputMap["SetPassword"] = "passed"
@@ -69,12 +73,20 @@ func main() {
 		testCaseOutputMap["GetAllKeys"] = "failed"
 		fmt.Println(err)
 	}
+	
+	// Change the password
+	testCaseOutputMap["ChangePassword"] = "passed"
+	if lib.ChangePassword(EncryptedFilePath, masterPassword, newMasterPassword) != nil {
+		testCaseOutputMap["ChangePassword"] = "failed"
+		fmt.Println(err)
+	}
 
 	// Delete keys
 	testCaseOutputMap["DeletePassword"] = "passed"
 	for key := range keyPasswordMap {
 		fmt.Printf("Deleting Password for key %s\n", key)
-		err := lib.DeletePassword(EncryptedFilePath, masterPassword, key)
+		// Delete using new master password
+		err := lib.DeletePassword(EncryptedFilePath, newMasterPassword, key)
 		if(err == nil) {
 			fmt.Printf("key %s deleted.\n", key)
 		} else {
@@ -85,12 +97,16 @@ func main() {
 	fmt.Println("================")
 	fmt.Println("Test Case Output")
 	fmt.Println("================")
+
+	bashPrinter := lib.BashPrinter()
+	
 	for key, _ := range testCaseOutputMap {
-		printColor := "Green"
+		printColor := bashPrinter.SUCCESS
 		if testCaseOutputMap[key] == "failed" {
-			printColor = "Red"
+			printColor = bashPrinter.ERROR
 		}
-		fmt.Println(key + " -> " + bashTextColorMap[printColor] + testCaseOutputMap[key] + bashTextColorMap["Normal"])
+
+		fmt.Println(key + " -> " + bashPrinter.GetMessage(testCaseOutputMap[key], printColor))
 	}
 
 	os.Remove(EncryptedFilePath)

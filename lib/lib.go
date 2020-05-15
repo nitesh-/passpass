@@ -1,42 +1,40 @@
 package lib 
 
 import(
-	openssl "gopkg.in/Luzifer/go-openssl.v3"
-	"io/ioutil"
 	"errors"
 	"encoding/json"
 	"strings"
+	"unicode"
 )
 
-const EncryptedFilePath = "./.p"
-
+// Sets the password for a particular key.
 func SetPassword(encryptedFilePath string, masterPassword string, key string, password string) error {
 	// Initiate the map which will store the json data
 	encryptedDataMap := make(map[string]string)
 
 	// Read the password file
-	content, err := DecryptFile(masterPassword, encryptedFilePath)
+	openSsl := OpenSsl()
+	content, err := openSsl.DecryptFile(masterPassword, encryptedFilePath)
 	if err != nil && !strings.Contains(err.Error(), "Invalid Encrypted file path") {
 		return err
 	} else {
 		json.Unmarshal([]byte(content), &encryptedDataMap)
 		
 		// Initiate the openssl to encrypt the password
-		o := openssl.New()
-		enc, err := o.EncryptBytes(masterPassword + "" + key, []byte(password), openssl.DigestSHA256Sum)
+		enc, err := openSsl.EncryptString(password, masterPassword + "" + key)
 		if err != nil {
-			return errors.New("An error occurred while encrypting the password: " + err.Error())
+			return err
 		}
 
 		// Make the encrypted string to the map
-		encryptedDataMap[key] = string(enc)
+		encryptedDataMap[key] = enc
 
 		// Encode the data to JSON
 		jsonBytes, err := json.Marshal(encryptedDataMap)
 
 		if err == nil {
 			// Write the JSON to file
-			err := EncryptFile(masterPassword, encryptedFilePath, string(jsonBytes))
+			err := openSsl.EncryptFile(masterPassword, encryptedFilePath, string(jsonBytes))
 			if(err != nil) {
 				return errors.New("An error occurred while encrypting the file: " + err.Error())
 			}
@@ -48,12 +46,14 @@ func SetPassword(encryptedFilePath string, masterPassword string, key string, pa
 	}
 }
 
+// Returns the password for a particular key
 func GetPassword(encryptedFilePath string, masterPassword string, key string) (string, error) {
 	// Initiate the map which will store the json data
 	encryptedDataMap := make(map[string]string)
 
 	// Read the password file
-	content, err := DecryptFile(masterPassword, encryptedFilePath)
+	openSsl := OpenSsl()
+	content, err := openSsl.DecryptFile(masterPassword, encryptedFilePath)
 	if err == nil {
 		// Decode the json string to data map
 		json.Unmarshal([]byte(content), &encryptedDataMap)
@@ -61,19 +61,13 @@ func GetPassword(encryptedFilePath string, masterPassword string, key string) (s
 		encPassword, encryptedKeyExists := encryptedDataMap[key]
 
 		if encryptedKeyExists {
-			// Initiate the openssl to decrypt the password
-			o := openssl.New()
 			// Decrypt the password
-			dec, err := o.DecryptBytes(masterPassword + "" + key, []byte(encPassword), openssl.DigestSHA256Sum)
+			dec, err := openSsl.DecryptString(masterPassword + "" + key, encPassword)
 
 			if err == nil {
-				return string(dec), nil
+				return dec, nil
 			} else {
-				if err.Error() == "invalid padding" {
-					return "", errors.New("The master password you provide may be incorrect.")
-				} else {
-					return "", errors.New("An error occurred while decrypting the string: " + err.Error())
-				}
+				return "", err
 			}
 		} else {
 			return "", errors.New("The provided key " + key + " does not exists.")
@@ -83,12 +77,14 @@ func GetPassword(encryptedFilePath string, masterPassword string, key string) (s
 	}
 }
 
+// Deletes the key and password
 func DeletePassword(encryptedFilePath string, masterPassword string, key string) error {
 	// Initiate the map which will store the json data
 	encryptedDataMap := make(map[string]string)
 
 	// Read the password file
-	content, err := DecryptFile(masterPassword, encryptedFilePath)
+	openSsl := OpenSsl()
+	content, err := openSsl.DecryptFile(masterPassword, encryptedFilePath)
 	if err == nil {
 		// Decode the json string to data map
 		json.Unmarshal([]byte(content), &encryptedDataMap)
@@ -101,7 +97,7 @@ func DeletePassword(encryptedFilePath string, masterPassword string, key string)
 
 			if err == nil {
 				// Write the JSON to file
-				err := EncryptFile(masterPassword, encryptedFilePath, string(jsonBytes))
+				err := openSsl.EncryptFile(masterPassword, encryptedFilePath, string(jsonBytes))
 				if(err != nil) {
 					errors.New("An error occurred while encrypting the file: " + err.Error())
 				}
@@ -116,8 +112,10 @@ func DeletePassword(encryptedFilePath string, masterPassword string, key string)
 	return err
 }
 
+// Returns all keys
 func GetAllKeys(encryptedFilePath string, masterPassword string) ([]string, error) {
-	content, err := DecryptFile(masterPassword, encryptedFilePath)
+	openSsl := OpenSsl()
+	content, err := openSsl.DecryptFile(masterPassword, encryptedFilePath)
 	encryptedDataMap := make(map[string]string)
 	if err == nil {
 		json.Unmarshal([]byte(content), &encryptedDataMap)
@@ -137,27 +135,83 @@ func GetAllKeys(encryptedFilePath string, masterPassword string) ([]string, erro
 	}
 }
 
-func DecryptFile(masterPassword string, filePath string) (string, error) {
-	content, err := ioutil.ReadFile(filePath)
+// Changes the master password. Old master password is required
+func ChangePassword(encryptedFilePath string, oldMasterPassword string, newMasterPassword string) error {
+	
+	// Initiate the map which will store the json data
+	encryptedDataMap := make(map[string]string)
+
+	// Read the password file
+	openSsl := OpenSsl()
+	content, err := openSsl.DecryptFile(oldMasterPassword, encryptedFilePath)
 	if err == nil {
-		o := openssl.New()
-		dec, err := o.DecryptBytes(masterPassword, []byte(content), openssl.DigestSHA256Sum)
-		if(err == nil) {
-			return string(dec), nil
+		// Decode the json string to data map
+		json.Unmarshal([]byte(content), &encryptedDataMap)
+		encryptedDataMapLen := len(encryptedDataMap)
+		if(encryptedDataMapLen > 0) {
+			for key := range encryptedDataMap {
+				dec, err := openSsl.DecryptString(oldMasterPassword + "" + key, encryptedDataMap[key])
+				if err == nil {
+					enc, err := openSsl.EncryptString(dec, newMasterPassword + "" + key)
+					if err != nil {
+						return errors.New("An error occurred while encrypting the password using New master password: " + err.Error())
+					}
+					encryptedDataMap[key] = enc
+				} else {
+					return errors.New("An error occurred while decrypting the password using Old master password: " + err.Error())
+				}
+			}
+
+			// Encode the data to JSON
+			jsonBytes, err := json.Marshal(encryptedDataMap)
+
+			if err == nil {
+				// Write the JSON to file
+				err := openSsl.EncryptFile(newMasterPassword, encryptedFilePath, string(jsonBytes))
+				if(err != nil) {
+					return errors.New("An error occurred while encrypting the file: " + err.Error())
+				}
+			} else {
+				return errors.New("An error occurred while encoding the data to JSON: " + err.Error())
+			}
+		} else {
+			return errors.New("There are no keys available.")
 		}
-		return "", errors.New("The master password may be incorrect")
+	} else {
+		return errors.New("An error occurred while decrypting the password file using Old Password: " + err.Error())
 	}
-	return "", errors.New("Invalid Encrypted file path")
+	return nil
 }
 
-func EncryptFile(masterPassword string, filePath string, fileData string) error {
-	o := openssl.New()
-	encFileData, err := o.EncryptBytes(masterPassword, []byte(fileData), openssl.DigestSHA256Sum)
-	if(err == nil) {
-		err := ioutil.WriteFile(filePath, encFileData, 0644)
-		if err != nil {
-			return err
+// Validates the password
+func ValidatePassword(password string) ([]string, bool) {
+	errorMessageArray := map[string]string{
+		"upper case": "1 upper case character",
+		"lower case": "1 lower case character",
+		"numeric": "1 number",
+		"special": "1 special character",
+		"length": "6 characters",
+	}
+	hasError := false
+	ret := make([]string, 0)
+	if(len(password) <= 6) {
+		ret = append(ret, errorMessageArray["length"])
+		hasError = true
+	} else {
+		next: for name, classes := range map[string][]*unicode.RangeTable {
+			"upper case": {unicode.Upper, unicode.Title},
+			"lower case": {unicode.Lower},
+			"numeric":    {unicode.Number, unicode.Digit},
+			"special":    {unicode.Space, unicode.Symbol, unicode.Punct, unicode.Mark},
+		} {
+				for _, r := range password {
+						if unicode.IsOneOf(classes, r) {
+								continue next
+						}
+				}
+				ret = append(ret, errorMessageArray[name])
+				hasError = true
 		}
 	}
-	return err
+	return ret, hasError
 }

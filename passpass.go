@@ -1,28 +1,29 @@
 package main
 
 import(
-	"fmt"
 	"strings"
 	"os"
 	"runtime"
 	"github.com/pborman/getopt"
 	"github.com/howeyc/gopass"
 	"github.com/atotto/clipboard"
-	"./lib"
+	"github.com/nitesh-/passpass/lib"
+	"fmt"
 )
 
 func main() {
 
 	optHelp := getopt.BoolLong("help", 0, "Help")
-	optSet := getopt.StringLong("set", 's', "", "value must be {keyname:password}. Sets key & password.")
+	optSet := getopt.StringLong("set", 's', "", "value must be {keyname}. It will prompt for the password.")
 	optGet := getopt.StringLong("get", 'g', "", "value must be {keyname}. Get password for the corresponding key.")
 	optDelete := getopt.StringLong("delete", 'd', "", "value must be {keyname}. Deletes the key.")
 	optPasswordFile := getopt.StringLong("password-file", 'f', "", "Provide the path of password file")
 	optGetKeys := getopt.BoolLong("get-keys", 'p', "Print all keys", "")
+	optChangePassword := getopt.BoolLong("change-password", 'c', "Change password", "")
 	
 	getopt.Parse()
 
-	if *optHelp || (*optSet == "" && *optGet == "" && *optDelete == "" && *optGetKeys == false) {
+	if *optHelp || (*optSet == "" && *optGet == "" && *optDelete == "" && *optGetKeys == false && *optChangePassword == false) {
 		getopt.Usage()
 	} else {
 
@@ -30,7 +31,9 @@ func main() {
 
 		masterPassword, _ := gopass.GetPasswd()
 
-		if len(masterPassword) > 0 {
+		bashPrinter := lib.BashPrinter()
+		passwordError, passwordInvalid := lib.ValidatePassword(string(masterPassword))
+		if !passwordInvalid {
 			homeDir := userHomeDir()
 			EncryptedFilePath := ""
 			// Set the password db file path
@@ -39,9 +42,10 @@ func main() {
 				_, err := os.Stat(EncryptedFilePath)
 				if err != nil {
 					// Trying to save empty json encrypted file
-					err := lib.EncryptFile(string(masterPassword), EncryptedFilePath, "{}")
+					openSsl := lib.OpenSsl()
+					err := openSsl.EncryptFile(string(masterPassword), EncryptedFilePath, "{}")
 					if err != nil {
-						fmt.Println(err)
+						bashPrinter.PrintMessage(err.Error(), bashPrinter.ERROR)
 						os.Exit(0)
 					}
 				}
@@ -54,12 +58,23 @@ func main() {
 			}
 
 			if *optSet != "" {
-				strSplit := strings.Split(*optSet, ":")
-				err := lib.SetPassword(EncryptedFilePath, string(masterPassword), strSplit[0], strSplit[1])
-				if err == nil {
-					fmt.Println("Password set successfully in " + EncryptedFilePath)
+				var key string = *optSet
+				if key != "" {
+					fmt.Printf("Please enter password for %s: ", key)
+					password, err := gopass.GetPasswd()
+
+					if err == nil {
+						err := lib.SetPassword(EncryptedFilePath, string(masterPassword), key, string(password))
+						if err == nil {
+							bashPrinter.PrintMessage("Password set successfully in " + EncryptedFilePath, bashPrinter.SUCCESS)
+						} else {
+							bashPrinter.PrintMessage(err.Error(), bashPrinter.ERROR)
+						}
+					} else {
+						bashPrinter.PrintMessage(err.Error(), bashPrinter.ERROR)
+					}
 				} else {
-					fmt.Println(err)
+					bashPrinter.PrintMessage("Please provide key", bashPrinter.ERROR)
 				}
 			} else if *optGet != "" {
 				password, err := lib.GetPassword(EncryptedFilePath, string(masterPassword), *optGet)
@@ -68,19 +83,19 @@ func main() {
 					err := clipboard.WriteAll(password)
 					// If unsuccessful, then print password
 					if err != nil {
-						fmt.Printf("Password: %s\n", password)
+						bashPrinter.PrintMessage("Password: " + password, bashPrinter.NORMAL)
 					} else {
-						fmt.Println("Password copied to clipboard")
+						bashPrinter.PrintMessage("Password copied to clipboard", bashPrinter.SUCCESS)
 					}
 				} else {
-					fmt.Println(err)
+					bashPrinter.PrintMessage(err.Error(), bashPrinter.ERROR)
 				}
 			} else if *optDelete != "" {
 				err := lib.DeletePassword(EncryptedFilePath, string(masterPassword), *optDelete)
 				if err == nil {
-					fmt.Println("Password deleted successfully.")
+					bashPrinter.PrintMessage("Password deleted successfully.", bashPrinter.SUCCESS)
 				} else {
-					fmt.Println(err)
+					bashPrinter.PrintMessage(err.Error(), bashPrinter.ERROR)
 				}
 			} else if *optGetKeys {
 				keySlice, err := lib.GetAllKeys(EncryptedFilePath, string(masterPassword))
@@ -88,24 +103,37 @@ func main() {
 				if err == nil {
 					for key := range keySlice {
 						if keySlice[key] != "" {
-							fmt.Println(keySlice[key])
+							bashPrinter.PrintMessage(keySlice[key], bashPrinter.NORMAL)
 						}
 					}
 				} else {
-					fmt.Println(err)
+					bashPrinter.PrintMessage(err.Error(), bashPrinter.ERROR)
+				}
+			} else if *optChangePassword {
+				fmt.Printf("Please enter New master password : ")
+				newMasterPassword, err := gopass.GetPasswd()
+
+				if err == nil {
+					err := lib.ChangePassword(EncryptedFilePath, string(masterPassword), string(newMasterPassword))
+					if err == nil {
+						bashPrinter.PrintMessage("Password changed successfully.", bashPrinter.SUCCESS)
+					} else {
+						bashPrinter.PrintMessage(err.Error(), bashPrinter.ERROR)
+					}
+				} else {
+					bashPrinter.PrintMessage(err.Error(), bashPrinter.ERROR)
 				}
 			}
 		} else {
-			fmt.Println("Please provide master password")
+			bashPrinter.PrintMessage("Password must have atleast:", bashPrinter.NORMAL)
+			bashPrinter.PrintMessage(strings.Join(passwordError[:], "\n"), bashPrinter.NORMAL)
 		}
 	}
 }
 
-/**
- * https://stackoverflow.com/questions/7922270/obtain-users-home-directory#answer-41786440
- *
- *
- */
+
+// https://stackoverflow.com/questions/7922270/obtain-users-home-directory#answer-41786440
+// Returns the Home directory for Linux, Mac and Windows 
 func userHomeDir() string {
     if runtime.GOOS == "windows" {
         home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")

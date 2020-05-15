@@ -45,9 +45,7 @@ The password file is portable and user just needs to remember the master passwor
 	Linux, Unix (requires 'xclip' or 'xsel' command to be installed)
 	
 ### Change Log:
-1. Added file path as parameter for password file
-2. Default path shall be home directory
+1. Added strong password constraint.
+2. Users can change password
+3. Password for a key shall be received using prompt so that it does not get logged into history
 
-### // TODO:
-1. Add strong password constraint.
-2. Allow to change password.
