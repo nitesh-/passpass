@@ -21,7 +21,7 @@ func SetPassword(encryptedFilePath string, masterPassword string, key string, pa
 		json.Unmarshal([]byte(content), &encryptedDataMap)
 		
 		// Initiate the openssl to encrypt the password
-		enc, err := openSsl.EncryptString(password, masterPassword + "" + key)
+		enc, err := openSsl.EncryptString(masterPassword + "" + key, password)
 		if err != nil {
 			return err
 		}
@@ -152,7 +152,7 @@ func ChangePassword(encryptedFilePath string, oldMasterPassword string, newMaste
 			for key := range encryptedDataMap {
 				dec, err := openSsl.DecryptString(oldMasterPassword + "" + key, encryptedDataMap[key])
 				if err == nil {
-					enc, err := openSsl.EncryptString(dec, newMasterPassword + "" + key)
+					enc, err := openSsl.EncryptString(newMasterPassword + "" + key, dec)
 					if err != nil {
 						return errors.New("An error occurred while encrypting the password using New master password: " + err.Error())
 					}
