@@ -8,7 +8,7 @@ import(
 )
 
 func main() {
-	extractor := lib.Extractor("!  &DEATHtillDEATH1234DEATH5%")
+	extractor := lib.Extractor("!  &uhHkd&jd8U42m24emk")
 	stringGroups := extractor.GetStringGroups()
 	combinations := extractor.GenerateCombinations(stringGroups)
 
